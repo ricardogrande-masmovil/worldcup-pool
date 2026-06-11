@@ -13,9 +13,8 @@ service cloud.firestore {
     // Verificar si el usuario es administrador
     function isAdmin() {
       return request.auth != null && (
-        request.auth.uid == 'Ats5WX8G70UcclSZiYJNuyh4U9e2' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
       );
     }
 
@@ -39,14 +38,12 @@ service cloud.firestore {
         // Si es un documento nuevo (creación), no se permite autoelevarse a admin
         (resource == null && (
           !request.resource.data.keys().hasAll(['isAdmin']) || 
-          request.resource.data.isAdmin == false || 
-          request.auth.uid == 'Ats5WX8G70UcclSZiYJNuyh4U9e2'
+          request.resource.data.isAdmin == false
         )) ||
-        // Si es una actualización, no se puede cambiar isAdmin a menos que ya fuera admin o sea el admin predefinido
+        // Si es una actualización, no se puede cambiar isAdmin a menos que ya fuera admin
         (resource != null && (
           !request.resource.data.keys().hasAll(['isAdmin']) || 
-          request.resource.data.isAdmin == resource.data.isAdmin || 
-          request.auth.uid == 'Ats5WX8G70UcclSZiYJNuyh4U9e2'
+          request.resource.data.isAdmin == resource.data.isAdmin
         ))
       );
     }

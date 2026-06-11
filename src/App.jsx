@@ -364,7 +364,7 @@ function App() {
             totalPoints: 0,
             exactMatches: 0,
             correctOutcomes: 0,
-            isAdmin: currentUser.uid === "Ats5WX8G70UcclSZiYJNuyh4U9e2"
+            isAdmin: false
           };
           await setDoc(userDocRef, profileData);
         }
@@ -493,7 +493,7 @@ function App() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName });
         
-        const makeAdmin = userCredential.user.uid === "Ats5WX8G70UcclSZiYJNuyh4U9e2";
+        const makeAdmin = false;
         
         const userDocRef = doc(db, "users", userCredential.user.uid);
         const profileData = {
