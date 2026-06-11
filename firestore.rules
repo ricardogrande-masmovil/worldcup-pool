@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Verificar si el usuario está en la lista blanca (o si está desactivada)
+    function isWhitelisted() {
+      return request.auth != null && (
+        !exists(/databases/$(database)/documents/config/settings) ||
+        get(/databases/$(database)/documents/config/settings).data.whitelistEnabled != true ||
+        exists(/databases/$(database)/documents/whitelist/$(request.auth.token.email))
+      );
+    }
+
+    // Verificar si el usuario es administrador
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.uid == 'Ats5WX8G70UcclSZiYJNuyh4U9e2' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+      );
+    }
+
+    // Reglas para la colección config
+    match /config/settings {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Reglas para la colección whitelist: permitir leer documentos individuales (get)
+    // para comprobación en signup, pero denegar listar la colección completa (list) para evitar robo de correos.
+    match /whitelist/{email} {
+      allow get: if true;
+      allow list, write: if isAdmin();
+    }
+
+    // Permitir leer/escribir perfiles de usuario si está autenticado y en la lista blanca
+    match /users/{userId} {
+      allow read: if isWhitelisted();
+      allow write: if isWhitelisted() && request.auth.uid == userId && (
+        // Si es un documento nuevo (creación), no se permite autoelevarse a admin
+        (resource == null && (
+          !request.resource.data.keys().hasAll(['isAdmin']) || 
+          request.resource.data.isAdmin == false || 
+          request.auth.uid == 'Ats5WX8G70UcclSZiYJNuyh4U9e2'
+        )) ||
+        // Si es una actualización, no se puede cambiar isAdmin a menos que ya fuera admin o sea el admin predefinido
+        (resource != null && (
+          !request.resource.data.keys().hasAll(['isAdmin']) || 
+          request.resource.data.isAdmin == resource.data.isAdmin || 
+          request.auth.uid == 'Ats5WX8G70UcclSZiYJNuyh4U9e2'
+        ))
+      );
+    }
+    
+    // Permitir leer partidos si está en la lista blanca. Escribir solo administradores.
+    match /matches/{matchId} {
+      allow read: if isWhitelisted();
+      allow write: if isAdmin();
+    }
+    
+    // Escribir al propio usuario o al administrador (para calcular puntos).
+    match /predictions/{predictionId} {
+      allow read: if isWhitelisted();
+      allow write: if isWhitelisted() && (
+        request.auth.uid == request.resource.data.userId ||
+        isAdmin()
+      );
+    }
+  }
+}
